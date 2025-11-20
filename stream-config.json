@@ -1,0 +1,5 @@
+{
+  "endpoints": [
+    "/evaluation/api/prompt-optimization/optimize/stream"
+  ]
+}

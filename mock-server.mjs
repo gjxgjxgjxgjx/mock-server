@@ -7,6 +7,7 @@ const PORT = process.env.MOCK_PORT ? Number(process.env.MOCK_PORT) : 7001;
 
 // 支持通过环境变量自定义 JSON 目录；默认使用项目内 mocks 目录
 const MOCK_JSON_DIR = process.env.MOCK_JSON_DIR ?? join(process.cwd(), 'mocks');
+import { isStreamEndpoint, resolveStreamFile, sendSseFromFile, MOCK_STREAM_DIR, STREAM_CONFIG_FILE } from './sse.mjs';
 
 function loadJson(filePath) {
     const raw = readFileSync(filePath, 'utf-8');
@@ -34,6 +35,7 @@ function ensureDir(dirPath) {
         mkdirSync(dirPath, { recursive: true });
     }
 }
+
 
 async function readRequestBody(req) {
     return await new Promise((resolve) => {
@@ -124,6 +126,29 @@ const server = http.createServer(async (req, res) => {
         console.warn('[mock-server] 写入请求报告失败:', e?.message ?? String(e));
     }
 
+    // 流式响应（SSE）：优先判断并返回
+    if (isStreamEndpoint(u.pathname)) {
+        const streamFile = resolveStreamFile(MOCK_STREAM_DIR, safeSeg);
+        try {
+            ensureDir(dirname(streamFile));
+            sendSseFromFile(streamFile, res);
+            return;
+        } catch (e) {
+            res.writeHead(500, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Cache-Control': 'no-cache',
+            });
+            res.end(
+                JSON.stringify({
+                    code: -1,
+                    message: `读取流式mock失败: ${e?.message ?? String(e)}`,
+                    hint: `请确保 ${streamFile} 存在且为有效的 .sse 或 .json 文件，或设置环境变量 MOCK_STREAM_DIR/STREAM_CONFIG`,
+                }),
+            );
+            return;
+        }
+    }
+
     // 动态：按倒数第二段作为子目录，最后一段作为文件名
     const lastSeg = safeSeg.length ? safeSeg[safeSeg.length - 1] : 'index';
     const secondLastSeg = safeSeg.length >= 2 ? safeSeg[safeSeg.length - 2] : null;
@@ -157,4 +182,10 @@ server.listen(PORT, () => {
     console.log(`[mock-server] listening on http://localhost:${PORT}`);
     console.log('[mock-server] mode: dir=倒数第二段/文件=最后一段 (*.json)');
     console.log(`[mock-server] data directory: ${MOCK_JSON_DIR}`);
+    console.log(`[mock-server] stream directory: ${MOCK_STREAM_DIR}`);
+    if (existsSync(STREAM_CONFIG_FILE)) {
+        console.log(`[mock-server] stream config: ${STREAM_CONFIG_FILE}`);
+    } else {
+        console.log('[mock-server] stream config: 未设置（默认匹配以 /stream 结尾的路径）');
+    }
 });

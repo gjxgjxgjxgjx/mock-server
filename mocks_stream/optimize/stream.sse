@@ -1,0 +1,22 @@
+retry: 1000
+
+event: request
+data: {"requestId": "78d66b882ded43358818fb466dfd9e49"}
+
+event: delta
+data: {"text": "优化后的提示词：请详细分析以下文本的情感倾向"}
+
+event: delta
+data: {"text": "请识别情感类别（正面、负面、中性）"}
+
+event: delta
+data: {"text": "并提供依据与关键句说明。"}
+
+event: delta
+data: {"text": "请使用 JSON 输出结果，包含字段 sentiment、rationale。"}
+
+event: delta
+data: {"text": "如有不确定性，请说明可能的原因。"}
+
+event: done
+data: {"ok": true, "totalTokens": 1523, "promptTokens": 862, "completionTokens": 661}
